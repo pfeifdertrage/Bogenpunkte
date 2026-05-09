@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Punkte Zähler</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#007BFF">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; background-color: #f4f7fa; }
+    h1 { text-align: center; color: #007BFF; }
+    label { display: block; margin: 10px 0 5px; font-weight: bold; }
+    select, input { width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 5px; }
+    button { padding: 10px; background-color: #007BFF; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; width: 100%; }
+    button:hover { background-color: #0056b3; }
+    .results { margin-top: 20px; border-top: 2px solid #ccc; padding-top: 20px; }
+    .round-result { margin-top: 10px; padding: 15px; background-color: #f9f9f9; border-radius: 8px; border-left: 5px solid #007BFF; }
+    .highlight-round { border: 3px solid #007BFF; padding: 20px; background-color: #f0f8ff; font-size: 1.1em; }
+    .hidden { display: none; }
+    .whatsapp-button {
+      background-color: #25D366;
+      color: white;
+      font-weight: bold;
+    }
+    .whatsapp-button:hover {
+      background-color: #128C7E;
+    }
+    .reset-button {
+      background-color: #007BFF;
+      color: white;
+      font-weight: bold;
+    }
+    .reset-button:hover {
+      background-color: #0056b3;
+    }
+    .button-container {
+      margin-top: 20px;
+    }
+    .whatsapp-container {
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Punkte Zähler</h1>
+  <button id="new-tournament-button">Neues Turnier beginnen</button>
+
+  <div class="input-container">
+    <label for="tournament">Turnier</label>
+    <input type="text" id="tournament" placeholder="Turniername">
+    <label for="name">Name</label>
+    <select id="name">
+      <option value="" disabled selected>Bitte Name auswählen</option>
+      <option>Paul Lüders</option>
+      <option>Jan Grüning</option>
+    </select>
+    <label for="distance">Entfernung</label>
+    <select id="distance">
+      <option>bitte auswählen</option>
+      <option>10m</option>
+      <option>18m</option>
+      <option>20m</option>
+      <option>30m</option>
+      <option>40m</option>
+      <option>50m</option>
+    </select>
+    <label for="target">Auflage</label>
+    <select id="target">
+      <option>bitte auswählen</option>
+      <option>120cm</option>
+      <option>80cm</option>
+      <option>60cm</option>
+      <option>40cm</option>
+    </select>
+    <label for="rounds">Rundenzahl</label>
+    <select id="rounds">
+      <option>20</option>
+      <option>24</option>
+    </select>
+    <label for="round">Runde</label>
+    <input type="number" id="round" value="1" readonly>
+
+    <label for="arrows">Pfeile</label>
+    <select id="arrows">
+      <option value="3" selected>3</option>
+      <option value="6">6</option>
+    </select>
+    <div id="arrow-points">
+      <div id="arrow-container"></div>
+    </div>
+    <label>Rundenpunkte</label>
+    <input type="number" id="round-points" value="0" readonly>
+
+    <label>Gesamtpunkte</label>
+    <input type="number" id="total-points" value="0" readonly>
+
+    <div class="button-container">
+      <button id="submit">Berechnen</button>
+    </div>
+  </div>
+
+  <div class="results">
+    <h2 id="result-title" class="hidden">Ergebnisse</h2>
+    <div id="round-results"></div>
+  </div>
+
+  <script>
+    let roundCounter = 1;
+    let totalPoints = 0;
+    let totalXCount = 0;
+    let roundResults = [];
+    let pausePoints = 0;
+    let pauseXCount = 0;
+
+    function populateArrows() {
+      let container = document.getElementById('arrow-container');
+      container.innerHTML = "";
+      let arrowCount = document.getElementById("arrows").value;
+
+      for (let i = 1; i <= arrowCount; i++) {
+        let label = document.createElement("label");
+        label.innerText = `Pfeil ${i}`;
+        container.appendChild(label);
+
+        let select = document.createElement("select");
+        select.classList.add("arrow-point");
+        for (let j = 0; j <= 10; j++) {
+          let option = document.createElement("option");
+          option.value = j;
+          option.textContent = j;
+          select.appendChild(option);
+        }
+        let xOption = document.createElement("option");
+        xOption.value = "X";
+        xOption.textContent = "X";
+        select.appendChild(xOption);
+        container.appendChild(select);
+      }
+    }
+
+    document.getElementById("arrows").addEventListener("change", populateArrows);
+    window.onload = populateArrows;
+
+    document.getElementById("submit").addEventListener("click", function() {
+      let tournamentName = document.getElementById('tournament').value;
+      let participantName = document.getElementById('name').value;
+
+      let resultTitle = document.getElementById("result-title");
+      resultTitle.innerText = `Ergebnisse von ${participantName} beim Turnier: ${tournamentName}`;
+      resultTitle.classList.remove("hidden");
+
+      let points = 0, roundX = 0;
+
+      document.querySelectorAll(".arrow-point").forEach((arrow) => {
+        if (arrow.value === "X") { 
+          points += 10; 
+          roundX++; 
+        }
+        else { 
+          points += parseInt(arrow.value); 
+        }
+      });
+
+      document.getElementById("round-points").value = points;
+
+      if (roundCounter === 10 && document.getElementById("rounds").value === "20") {
+        pausePoints = totalPoints;
+        pauseXCount = totalXCount;
+        roundResults = roundResults.slice(9);
+      }
+
+      if (roundCounter === 12 && document.getElementById("rounds").value === "24") {
+        pausePoints = totalPoints;
+        pauseXCount = totalXCount;
+        roundResults = roundResults.slice(11);
+      }
+
+      if (roundCounter === 20 && document.getElementById("rounds").value === "20") {
+        roundResults = roundResults.slice(19);
+        document.getElementById("submit").disabled = true;
+      }
+
+      if (roundCounter === 24 && document.getElementById("rounds").value === "24") {
+        roundResults = roundResults.slice(23);
+        document.getElementById("submit").disabled = true;
+      }
+
+      let roundResult = { round: roundCounter, points: points, xCount: roundX };
+      roundResults.push(roundResult);
+
+      totalPoints += points;
+      totalXCount += roundX;
+
+      let roundResultsContainer = document.getElementById("round-results");
+      roundResultsContainer.innerHTML = "";
+
+      roundResults.forEach(result => {
+        let roundDiv = document.createElement("div");
+        roundDiv.classList.add("round-result");
+
+        if (result.round === 10 && document.getElementById("rounds").value === "20") {
+          roundDiv.classList.add("highlight-round");
+          roundDiv.innerHTML = `
+            <strong>Zur Pause: Ergebnis von ${participantName} beim Turnier ${tournamentName} nach ${result.round} Runden:</strong><br>
+            Rundenpunkte: ${result.points}<br>
+            Erzielte X: ${result.xCount}<br>
+            <hr>
+            <strong>Gesamtpunkte:</strong> <strong>${totalPoints}</strong><br>
+            <strong>Gesamt X:</strong> <strong>${totalXCount}</strong>
+            <div class="whatsapp-container">
+              <button class="whatsapp-button" onclick="shareResult('Zur Pause: Ergebnis von ${participantName} beim Turnier: ${tournamentName} nach ${result.round} Runden: Rundenpunkte: ${result.points} Erzielte X: ${result.xCount} Gesamtpunkte: ${totalPoints} Gesamt X: ${totalXCount}')">Teilen auf WhatsApp</button>
+            </div>
+          `;
+        } else if (result.round === 12 && document.getElementById("rounds").value === "24") {
+          roundDiv.classList.add("highlight-round");
+          roundDiv.innerHTML = `
+            <strong>Zur Pause: Ergebnis von ${participantName} beim Turnier: ${tournamentName} nach ${result.round} Runden:</strong><br>
+            Rundenpunkte: ${result.points}<br>
+            Erzielte X: ${result.xCount}<br>
+            <hr>
+            <strong>Gesamtpunkte:</strong> <strong>${totalPoints}</strong><br>
+            <strong>Gesamt X:</strong> <strong>${totalXCount}</strong>
+            <div class="whatsapp-container">
+              <button class="whatsapp-button" onclick="shareResult('Zur Pause: Ergebnis von ${participantName} beim Turnier: ${tournamentName} nach ${result.round} Runden: Rundenpunkte: ${result.points} Erzielte X: ${result.xCount} Gesamtpunkte: ${totalPoints} Gesamt X: ${totalXCount}')">Teilen auf WhatsApp</button>
+            </div>
+          `;
+        } else if (result.round === 20 && document.getElementById("rounds").value === "20") {
+          roundDiv.classList.add("highlight-round");
+          roundDiv.innerHTML = `
+            <strong>Endstand von ${participantName} beim Turnier: ${tournamentName} nach ${result.round} Runden:</strong><br>
+            Rundenpunkte: ${result.points}<br>
+            Erzielte X: ${result.xCount}<br>
+            <hr>
+            <strong>Gesamtpunkte:</strong> <strong>${totalPoints}</strong> (Pause: ${pausePoints})<br>
+            <strong>Gesamt X:</strong> <strong>${totalXCount}</strong> (Pause: ${pauseXCount})
+            <div class="whatsapp-container">
+              <button class="whatsapp-button" onclick="shareResult('Endstand von ${participantName} beim Turnier: ${tournamentName} nach ${result.round} Runden: Rundenpunkte: ${result.points} Erzielte X: ${result.xCount} Gesamtpunkte: ${totalPoints} Gesamt X: ${totalXCount}')">Teilen auf WhatsApp</button>
+              <br><br>
+              <button class="reset-button" onclick="resetForm()">Turnier beendet</button>
+            </div>
+          `;
+        } else if (result.round === 24 && document.getElementById("rounds").value === "24") {
+          roundDiv.classList.add("highlight-round");
+          roundDiv.innerHTML = `
+            <strong>Endstand von ${participantName} beim Turnier: ${tournamentName} nach ${result.round} Runden:</strong><br>
+            Rundenpunkte: ${result.points}<br>
+            Erzielte X: ${result.xCount}<br>
+            <hr>
+            <strong>Gesamtpunkte:</strong> <strong>${totalPoints}</strong> (Pause: ${pausePoints})<br>
+            <strong>Gesamt X:</strong> <strong>${totalXCount}</strong> (Pause: ${pauseXCount})
+            <div class="whatsapp-container">
+              <button class="whatsapp-button" onclick="shareResult('Endstand von ${participantName} beim Turnier: ${tournamentName} nach ${result.round} Runden: Rundenpunkte: ${result.points} Erzielte X: ${result.xCount} Gesamtpunkte: ${totalPoints} Gesamt X: ${totalXCount}')">Teilen auf WhatsApp</button>
+              <br><br>
+              <button class="reset-button" onclick="resetForm()">Turnier beendet</button>
+            </div>
+          `;
+        } else {
+          roundDiv.innerHTML = `
+            <strong>Ergebnis von ${participantName} beim Turnier: ${tournamentName} nach ${result.round} Runden:</strong><br>
+            Rundenpunkte: ${result.points}<br>
+            Erzielte X: ${result.xCount}<br>
+            <hr>
+            <strong>Gesamtpunkte:</strong> <strong>${totalPoints}</strong><br>
+            <strong>Gesamt X:</strong> <strong>${totalXCount}</strong>
+          `;
+        }
+
+        roundResultsContainer.appendChild(roundDiv);
+      });
+
+      document.getElementById("total-points").value = totalPoints;
+      document.querySelectorAll(".arrow-point").forEach(arrow => arrow.value = "0");
+
+      roundCounter++;
+      document.getElementById("round").value = roundCounter;
+    });
+
+    function shareResult(text) {
+      const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
+      window.open(url, '_blank');
+    }
+
+    function resetForm() {
+      location.reload();
+    }
+
+    document.getElementById("new-tournament-button").addEventListener("click", function() {
+      location.reload();
+    });
+
+    // PWA Service Worker Registrierung
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js')
+          .then(registration => {
+            console.log('ServiceWorker erfolgreich registriert. Scope:', registration.scope);
+          })
+          .catch(error => {
+            console.error('ServiceWorker Registrierung fehlgeschlagen:', error);
+          });
+      });
+    }
+  </script>
+</body>
+</html>
